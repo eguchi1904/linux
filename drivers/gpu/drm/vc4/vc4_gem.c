@@ -42,7 +42,7 @@ vc4_queue_hangcheck(struct drm_device *dev)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	mod_timer(&vc4->hangcheck.timer,
-		  round_jiffies_up(jiffies + msecs_to_jiffies(100)));
+              round_jiffies_up(jiffies + msecs_to_jiffies(3000))); // test
 }
 
 struct vc4_hang_state {
@@ -300,6 +300,7 @@ vc4_reset(struct drm_device *dev)
 	mutex_unlock(&vc4->power_lock);
 
 	vc4_irq_reset(dev);
+    DRM_INFO("vc4_irq_rest.\n");
 
 	/* Rearm the hangcheck -- another job might have been waiting
 	 * for our hung one to get kicked off, and vc4_irq_reset()
@@ -322,6 +323,8 @@ vc4_reset_work(struct work_struct *work)
 static void
 vc4_hangcheck_elapsed(struct timer_list *t)
 {
+    DRM_INFO("enter vc4_hangcheck_elapsed");
+    DRM_ERROR("enter vc4_hangcheck_elapsed");
 	struct vc4_dev *vc4 = from_timer(vc4, t, hangcheck.timer);
 	struct drm_device *dev = &vc4->base;
 	uint32_t ct0ca, ct1ca, qpurqcc;

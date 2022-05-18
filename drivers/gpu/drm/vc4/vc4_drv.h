@@ -128,7 +128,7 @@ struct vc4_dev {
 		struct list_head list;
 		unsigned int num;
 		size_t size;
-		unsigned int purged_num;
+	unsigned int purged_num;
 		size_t purged_size;
 		struct mutex lock;
 	} purgeable;

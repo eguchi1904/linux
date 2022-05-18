@@ -199,6 +199,8 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 static irqreturn_t
 vc4_irq(int irq, void *arg)
 {
+    DRM_DEBUG("enter vc4_irq \n");
+    DRM_ERROR("enter vc4_irq \n");
 	struct drm_device *dev = arg;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t intctl, dbqitc;
@@ -301,7 +303,7 @@ vc4_irq_disable(struct drm_device *dev)
 
 	if (!vc4->v3d)
 		return;
-
+    DRM_DEBUG("disable irq: \n");
 	/* Disable sending interrupts for our driver's IRQs. */
 	V3D_WRITE(V3D_INTDIS, V3D_DRIVER_IRQS);
 	V3D_WRITE(V3D_DBQITE, 0);
@@ -329,6 +331,8 @@ int vc4_irq_install(struct drm_device *dev, int irq)
 	if (ret)
 		return ret;
 
+    DRM_DEBUG("request_irq: %d \n", ret);
+    DRM_ERROR("request_irq: %d \n", ret);
 	vc4_irq_enable(dev);
 
 	return 0;
@@ -337,7 +341,7 @@ int vc4_irq_install(struct drm_device *dev, int irq)
 void vc4_irq_uninstall(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-
+    DRM_INFO("irq uninstall");
 	vc4_irq_disable(dev);
 	free_irq(vc4->irq, dev);
 }
@@ -345,6 +349,7 @@ void vc4_irq_uninstall(struct drm_device *dev)
 /** Reinitializes interrupt registers when a GPU reset is performed. */
 void vc4_irq_reset(struct drm_device *dev)
 {
+    DRM_INFO("vc4_irq_rest.\n");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	unsigned long irqflags;
 

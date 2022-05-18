@@ -1,4 +1,4 @@
-/*
+*
  * Copyright © 2014 Intel Corporation
  *   Daniel Vetter <daniel.vetter@ffwll.ch>
  *

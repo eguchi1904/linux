@@ -454,6 +454,8 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 		DRM_ERROR("Failed to install IRQ handler\n");
 		return ret;
 	}
+    DRM_DEBUG("eguchi test DRM_DEBUG.\n");
+    DRM_ERROR("eguchi test DRM_ERROR.\n");
 
 	pm_runtime_set_active(dev);
 	pm_runtime_use_autosuspend(dev);
