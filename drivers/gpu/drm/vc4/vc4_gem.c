@@ -324,7 +324,6 @@ static void
 vc4_hangcheck_elapsed(struct timer_list *t)
 {
     DRM_INFO("enter vc4_hangcheck_elapsed");
-    DRM_ERROR("enter vc4_hangcheck_elapsed");
 	struct vc4_dev *vc4 = from_timer(vc4, t, hangcheck.timer);
 	struct drm_device *dev = &vc4->base;
 	uint32_t ct0ca, ct1ca, qpurqcc;
@@ -353,6 +352,8 @@ vc4_hangcheck_elapsed(struct timer_list *t)
 	if ((bin_exec && ct0ca != bin_exec->last_ct0ca) ||
 	    (render_exec && (ct1ca != render_exec->last_ct1ca ||
 			     qpurqcc != render_exec->last_qpurqcc))) {
+
+		DRM_INFO("wait");
 		if (bin_exec)
 			bin_exec->last_ct0ca = ct0ca;
 		if (render_exec) {
@@ -363,13 +364,14 @@ vc4_hangcheck_elapsed(struct timer_list *t)
 		vc4_queue_hangcheck(dev);
 		return;
 	}
-
+	DRM_INFO("spin_unlock_irqrestore");	 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
 	/* We've gone too long with no progress, reset.  This has to
 	 * be done from a work struct, since resetting can sleep and
 	 * this timer hook isn't allowed to.
 	 */
+	DRM_INFO("too long with no progress, will reset work");	 
 	schedule_work(&vc4->hangcheck.reset_work);
 }
 
@@ -389,6 +391,7 @@ int
 vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 		   bool interruptible)
 {
+	DRM_INFO("enter vc4_wait_for_seqno");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret = 0;
 	unsigned long timeout_expire;
@@ -401,7 +404,7 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 		return -ETIME;
 
 	timeout_expire = jiffies + nsecs_to_jiffies(timeout_ns);
-
+	DRM_INFO("trace_vc4_wait_for_seqno_begin");
 	trace_vc4_wait_for_seqno_begin(dev, seqno, timeout_ns);
 	for (;;) {
 		prepare_to_wait(&vc4->job_wait_queue, &wait,
@@ -409,12 +412,15 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 				TASK_UNINTERRUPTIBLE);
 
 		if (interruptible && signal_pending(current)) {
+			DRM_INFO("pending, will break");
 			ret = -ERESTARTSYS;
 			break;
 		}
 
-		if (vc4->finished_seqno >= seqno)
+		if (vc4->finished_seqno >= seqno){
+			DRM_INFO("finished_seqno >= seqno");
 			break;
+		}
 
 		if (timeout_ns != ~0ull) {
 			if (time_after_eq(jiffies, timeout_expire)) {
@@ -423,13 +429,15 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 			}
 			schedule_timeout(timeout_expire - jiffies);
 		} else {
+			DRM_INFO("will schedule()");
 			schedule();
+			DRM_INFO("did schedule()");
 		}
 	}
-
+	DRM_INFO("finish_wait");
 	finish_wait(&vc4->job_wait_queue, &wait);
 	trace_vc4_wait_for_seqno_end(dev, seqno);
-
+	DRM_INFO("trace_vc4_wait_for_seqno_begin: return %d", ret);
 	return ret;
 }
 
@@ -473,6 +481,7 @@ vc4_flush_texture_caches(struct drm_device *dev)
 void
 vc4_submit_next_bin_job(struct drm_device *dev)
 {
+	DRM_INFO("enter vc4_submit_next_bin_job");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec;
 
@@ -486,13 +495,16 @@ again:
 	/* Only start the perfmon if it was not already started by a previous
 	 * job.
 	 */
-	if (exec->perfmon && vc4->active_perfmon != exec->perfmon)
+	if (exec->perfmon && vc4->active_perfmon != exec->perfmon){
+		DRM_INFO("vc4_perfmon_start");
 		vc4_perfmon_start(vc4, exec->perfmon);
+	}
 
 	/* Either put the job in the binner if it uses the binner, or
 	 * immediately move it to the to-be-rendered queue.
 	 */
 	if (exec->ct0ca != exec->ct0ea) {
+		DRM_INFO("submit_cl");
 		submit_cl(dev, 0, exec->ct0ca, exec->ct0ea);
 	} else {
 		struct vc4_exec_info *next;
@@ -513,6 +525,7 @@ again:
 void
 vc4_submit_next_render_job(struct drm_device *dev)
 {
+	DRM_INFO("vc4_submit_next_render_job");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec = vc4_first_render_job(vc4);
 	int i;
@@ -535,7 +548,9 @@ vc4_submit_next_render_job(struct drm_device *dev)
 			V3D_WRITE(V3D_SRQUA, exec->user_qpu_job[i].uniforms);
 			V3D_WRITE(V3D_SRQPC, exec->user_qpu_job[i].code);
 		}
+		DRM_INFO("write to V3D_SRQPC, V3D_SRQUA");
 	} else {
+		DRM_INFO("submit_cl in vc4_submit_next_render_job");
 		submit_cl(dev, 1, exec->ct1ca, exec->ct1ea);
 	}
 }
@@ -545,7 +560,7 @@ vc4_move_job_to_render(struct drm_device *dev, struct vc4_exec_info *exec)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	bool was_empty = list_empty(&vc4->render_job_list);
-
+	DRM_INFO("vc4_move_job_to_render");
 	list_move_tail(&exec->head, &vc4->render_job_list);
 	if (was_empty)
 		vc4_submit_next_render_job(dev);
@@ -683,6 +698,7 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 		 struct ww_acquire_ctx *acquire_ctx,
 		 struct drm_syncobj *out_sync)
 {
+	DRM_INFO("vc4_queue_submit");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *renderjob;
 	uint64_t seqno;
@@ -721,12 +737,13 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 	renderjob = vc4_first_render_job(vc4);
 	if (vc4_first_bin_job(vc4) == exec &&
 	    (!renderjob || renderjob->perfmon == exec->perfmon)) {
+		DRM_INFO("vc4_submit_next_bin_job");	
 		vc4_submit_next_bin_job(dev);
 		vc4_queue_hangcheck(dev);
 	}
 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
-
+	DRM_INFO("submit job seqno=%d", seqno);
 	return seqno;
 }
 

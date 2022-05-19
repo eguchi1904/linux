@@ -353,6 +353,7 @@ void vc4_v3d_bin_bo_put(struct vc4_dev *vc4)
 #ifdef CONFIG_PM
 static int vc4_v3d_runtime_suspend(struct device *dev)
 {
+	DRM_INFO("vc4_v3d_runtime_suspend");
 	struct vc4_v3d *v3d = dev_get_drvdata(dev);
 	struct vc4_dev *vc4 = v3d->vc4;
 
@@ -365,6 +366,7 @@ static int vc4_v3d_runtime_suspend(struct device *dev)
 
 static int vc4_v3d_runtime_resume(struct device *dev)
 {
+	DRM_INFO("vc4_v3d_runtime_resume");
 	struct vc4_v3d *v3d = dev_get_drvdata(dev);
 	struct vc4_dev *vc4 = v3d->vc4;
 	int ret;
@@ -376,6 +378,7 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 	vc4_v3d_init_hw(&vc4->base);
 
 	/* We disabled the IRQ as part of vc4_irq_uninstall in suspend. */
+	DRM_INFO("enable_irq");
 	enable_irq(vc4->irq);
 	vc4_irq_enable(&vc4->base);
 
@@ -400,7 +403,7 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 
 	v3d->pdev = pdev;
 
-	v3d->regs = vc4_ioremap_regs(pdev, 0);
+	v3d->regs = vc4_ioremap_regs(pdev, 0); // V3D_READ/V3D_WRITEはこのv3d->regsからoffset取ってレジスタアクセスしている。 cacheは大丈夫か
 	if (IS_ERR(v3d->regs))
 		return PTR_ERR(v3d->regs);
 	v3d->regset.base = v3d->regs;

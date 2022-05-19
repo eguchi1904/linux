@@ -307,7 +307,7 @@ vc4_irq_disable(struct drm_device *dev)
 
 	if (!vc4->v3d)
 		return;
-    DRM_INFO("disable irq: \n");
+    DRM_INFO("vc4_irq_disable");
 
 	/* Disable sending interrupts for our driver's IRQs. */
 	V3D_WRITE(V3D_INTDIS, V3D_DRIVER_IRQS);
