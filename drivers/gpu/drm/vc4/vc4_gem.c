@@ -547,8 +547,17 @@ vc4_submit_next_render_job(struct drm_device *dev)
 		for (i = 0; i < exec->user_qpu_job_count; i++) {
 			V3D_WRITE(V3D_SRQUA, exec->user_qpu_job[i].uniforms);
 			V3D_WRITE(V3D_SRQPC, exec->user_qpu_job[i].code);
-		}
+		}	
 		DRM_INFO("write to V3D_SRQPC, V3D_SRQUA");
+		uint32_t intctl, intena;
+		intctl = V3D_READ(V3D_INTCTL);
+		intena = V3D_READ(V3D_INTENA);
+		DRM_INFO("intctl = %u, intena= %u", intctl, intena);
+		V3D_WRITE(V3D_INTENA, V3D_INT_FLDONE | V3D_INT_FRDONE);				
+		V3D_WRITE(V3D_INTCTL, (V3D_INT_OUTOMEM | V3D_INT_FLDONE | V3D_INT_FRDONE));
+		V3D_WRITE(V3D_DBQITE, ~0);
+		V3D_WRITE(V3D_DBQITC, ~0);
+		
 	} else {
 		DRM_INFO("submit_cl in vc4_submit_next_render_job");
 		submit_cl(dev, 1, exec->ct1ca, exec->ct1ea);
