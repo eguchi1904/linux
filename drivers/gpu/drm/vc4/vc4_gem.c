@@ -1131,6 +1131,7 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 static struct vc4_exec_info *
 vc4_exec_alloc(struct drm_device *dev)
 {
+	DRM_INFO("enter vc4_exec_alloc");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec;
 	int ret;
@@ -1142,8 +1143,11 @@ vc4_exec_alloc(struct drm_device *dev)
 	}
 
 	mutex_lock(&vc4->power_lock);
+	DRM_INFO("enter vc4->power_lock mutex");
 	if (vc4->power_refcount++ == 0) {
+		DRM_INFO("will pm_runtime_get_sync");
 		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+		DRM_INFO("did pm_runtime_get_sync");
 		if (ret < 0) {
 			vc4->power_refcount--;
 			mutex_unlock(&vc4->power_lock);
@@ -1152,7 +1156,7 @@ vc4_exec_alloc(struct drm_device *dev)
 		}
 	}
 	mutex_unlock(&vc4->power_lock);
-
+	DRM_INFO("release vc4->power_lock ");
 	INIT_LIST_HEAD(&exec->unref_list);
 
 	return exec;
@@ -1339,12 +1343,14 @@ vc4_firmware_qpu_execute(struct vc4_dev *vc4, u32 num_jobs,
 		return PTR_ERR(exec);
 
 	ret = vc4_lock_bo_reservations(dev, exec, &acquire_ctx);
+	DRM_INFO("vc4_lock_bo_reservations");
 	if (ret) {
 		vc4_complete_exec(dev, exec);
 		return ret;
 	}
 
 	control_args = arch_memremap_wb(control_paddr, num_jobs * 2 * sizeof(u32));
+	DRM_INFO("did arch_memremap_wb");
 	if (!control_args) {
 		vc4_complete_exec(dev, exec);
 		return -EINVAL;
@@ -1353,7 +1359,7 @@ vc4_firmware_qpu_execute(struct vc4_dev *vc4, u32 num_jobs,
 	for (i = 0; i < num_jobs; i++) {
 		exec->user_qpu_job[i].code = control_args[i].code;
 		exec->user_qpu_job[i].uniforms = control_args[i].uniforms;
-		DRM_INFO("%08x 0x%08x\n", exec->user_qpu_job[i].code,
+		DRM_INFO("set vc4_exec_info: %08x 0x%08x\n", exec->user_qpu_job[i].code,
 			 exec->user_qpu_job[i].uniforms);
 	}
 	iounmap(control_args);

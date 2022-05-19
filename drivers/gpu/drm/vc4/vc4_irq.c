@@ -154,6 +154,7 @@ vc4_cancel_bin_job(struct drm_device *dev)
 static void
 vc4_irq_finish_render_job(struct drm_device *dev)
 {
+	DRM_INFO("enter finish render job");				
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec = vc4_first_render_job(vc4);
 	struct vc4_exec_info *nextbin, *nextrender;
@@ -191,7 +192,7 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 		dma_fence_put(exec->fence);
 		exec->fence = NULL;
 	}
-
+	DRM_INFO("wake up wait queue"); // vc/以下で、wake_upが呼ばれてるのはここだけぽい
 	wake_up_all(&vc4->job_wait_queue);
 	schedule_work(&vc4->job_done_work);
 }
@@ -217,15 +218,17 @@ vc4_irq(int irq, void *arg)
 	 */
 	V3D_WRITE(V3D_INTCTL, intctl);
 	V3D_WRITE(V3D_DBQITC, dbqitc);
-
+	DRM_INFO("intctl= %d, dbqitc=%d", intctl, dbqitc);
 	if (intctl & V3D_INT_OUTOMEM) {
 		/* Disable OUTOMEM until the work is done. */
+		DRM_INFO("OUTOMEM");
 		V3D_WRITE(V3D_INTDIS, V3D_INT_OUTOMEM);
 		schedule_work(&vc4->overflow_mem_work);
 		status = IRQ_HANDLED;
 	}
 
 	if (intctl & V3D_INT_FLDONE) {
+		DRM_INFO("will finish bin job");		
 		spin_lock(&vc4->job_lock);
 		vc4_irq_finish_bin_job(dev);
 		spin_unlock(&vc4->job_lock);
@@ -233,6 +236,7 @@ vc4_irq(int irq, void *arg)
 	}
 
 	if (intctl & V3D_INT_FRDONE) {
+		DRM_INFO("will finish render job");				
 		spin_lock(&vc4->job_lock);
 		vc4_irq_finish_render_job(dev);
 		spin_unlock(&vc4->job_lock);
@@ -303,7 +307,8 @@ vc4_irq_disable(struct drm_device *dev)
 
 	if (!vc4->v3d)
 		return;
-    DRM_DEBUG("disable irq: \n");
+    DRM_INFO("disable irq: \n");
+
 	/* Disable sending interrupts for our driver's IRQs. */
 	V3D_WRITE(V3D_INTDIS, V3D_DRIVER_IRQS);
 	V3D_WRITE(V3D_DBQITE, 0);
@@ -326,7 +331,7 @@ int vc4_irq_install(struct drm_device *dev, int irq)
 		return -ENOTCONN;
 
 	vc4_irq_prepare(dev);
-
+	DRM_INFO("request_irq, irq=%d name=%s", irq, dev->driver->name); // => irq=67 name=vc4
 	ret = request_irq(irq, vc4_irq, 0, dev->driver->name, dev);
 	if (ret)
 		return ret;
