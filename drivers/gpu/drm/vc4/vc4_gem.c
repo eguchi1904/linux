@@ -39,7 +39,7 @@ vc4_queue_hangcheck(struct drm_device *dev)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	mod_timer(&vc4->hangcheck.timer,
-		  round_jiffies_up(jiffies + msecs_to_jiffies(100)));
+		  round_jiffies_up(jiffies + msecs_to_jiffies(3000)));
 }
 
 struct vc4_hang_state {
@@ -303,6 +303,7 @@ vc4_reset(struct drm_device *dev)
 static void
 vc4_reset_work(struct work_struct *work)
 {
+	DRM_INFO("enter vc4_reset_work");
 	struct vc4_dev *vc4 =
 		container_of(work, struct vc4_dev, hangcheck.reset_work);
 
@@ -314,6 +315,7 @@ vc4_reset_work(struct work_struct *work)
 static void
 vc4_hangcheck_elapsed(struct timer_list *t)
 {
+	DRM_INFO("enter vc4_hangcheck_elapsed");
 	struct vc4_dev *vc4 = from_timer(vc4, t, hangcheck.timer);
 	struct drm_device *dev = vc4->dev;
 	uint32_t ct0ca, ct1ca, qpurqcc;
@@ -350,6 +352,7 @@ vc4_hangcheck_elapsed(struct timer_list *t)
 		}
 		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 		vc4_queue_hangcheck(dev);
+		DRM_INFO("wait");
 		return;
 	}
 
@@ -359,6 +362,7 @@ vc4_hangcheck_elapsed(struct timer_list *t)
 	 * be done from a work struct, since resetting can sleep and
 	 * this timer hook isn't allowed to.
 	 */
+	DRM_INFO("waited too long with no progress. will reset_work");
 	schedule_work(&vc4->hangcheck.reset_work);
 }
 
@@ -378,6 +382,7 @@ int
 vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 		   bool interruptible)
 {
+	DRM_INFO("enter vc4_wait_for_seqno");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret = 0;
 	unsigned long timeout_expire;
@@ -412,7 +417,9 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 			}
 			schedule_timeout(timeout_expire - jiffies);
 		} else {
+			DRM_INFO("will sechedule");
 			schedule();
+			DRM_INFO("did schecule");
 		}
 	}
 
@@ -508,6 +515,7 @@ vc4_submit_next_render_job(struct drm_device *dev)
 			V3D_WRITE(V3D_SRQUA, exec->user_qpu_job[i].uniforms);
 			V3D_WRITE(V3D_SRQPC, exec->user_qpu_job[i].code);
 		}
+		DRM_INFO("write to V3D_SRQUA and V3D_SRQPC");
 	} else {
 		submit_cl(dev, 1, exec->ct1ca, exec->ct1ea);
 	}

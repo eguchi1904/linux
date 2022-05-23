@@ -129,6 +129,7 @@ vc4_cancel_bin_job(struct drm_device *dev)
 static void
 vc4_irq_finish_render_job(struct drm_device *dev)
 {
+	DRM_INFO("enter vc4_irq_finish_render_job");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec = vc4_first_render_job(vc4);
 
@@ -143,14 +144,16 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 		exec->fence = NULL;
 	}
 	vc4_submit_next_render_job(dev);
-
+	DRM_INFO("will wake_up_all");
 	wake_up_all(&vc4->job_wait_queue);
+	DRM_INFO("did wake_up_all");
 	schedule_work(&vc4->job_done_work);
 }
 
 irqreturn_t
 vc4_irq(int irq, void *arg)
 {
+	DRM_INFO("enter vc4_irq");
 	struct drm_device *dev = arg;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t intctl, dbqitc;
@@ -170,12 +173,14 @@ vc4_irq(int irq, void *arg)
 
 	if (intctl & V3D_INT_OUTOMEM) {
 		/* Disable OUTOMEM until the work is done. */
+		DRM_INFO("OUTOMEM");
 		V3D_WRITE(V3D_INTDIS, V3D_INT_OUTOMEM);
 		schedule_work(&vc4->overflow_mem_work);
 		status = IRQ_HANDLED;
 	}
 
 	if (intctl & V3D_INT_FLDONE) {
+		DRM_INFO("FLDONE");
 		spin_lock(&vc4->job_lock);
 		vc4_irq_finish_bin_job(dev);
 		spin_unlock(&vc4->job_lock);
@@ -183,6 +188,7 @@ vc4_irq(int irq, void *arg)
 	}
 
 	if (intctl & V3D_INT_FRDONE) {
+		DRM_INFO("FRDONE");
 		spin_lock(&vc4->job_lock);
 		vc4_irq_finish_render_job(dev);
 		spin_unlock(&vc4->job_lock);
@@ -190,6 +196,7 @@ vc4_irq(int irq, void *arg)
 	}
 
 	if (dbqitc) {
+		DRM_INFO("dbqitc");
 		uint32_t srqcs = V3D_READ(V3D_SRQCS);
 		/* The job isn't done until all programs that were
 		 * spawned have sent an interrupt.
@@ -201,6 +208,7 @@ vc4_irq(int irq, void *arg)
 		 */
 		if (VC4_GET_FIELD(srqcs, V3D_SRQCS_QPURQCC) ==
 		    VC4_GET_FIELD(srqcs, V3D_SRQCS_QPURQCM)) {
+				DRM_INFO("will vc4_irq_finish_render_job");
 			V3D_WRITE(srqcs,
 				  V3D_SRQCS_QPURQCC_CLEAR |
 				  V3D_SRQCS_QPURQCM_CLEAR);
@@ -263,6 +271,7 @@ vc4_irq_uninstall(struct drm_device *dev)
 /** Reinitializes interrupt registers when a GPU reset is performed. */
 void vc4_irq_reset(struct drm_device *dev)
 {
+	DRM_INFO("enter vc4_irq_reset");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	unsigned long irqflags;
 

@@ -336,6 +336,7 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 
 static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 {
+	DRM_INFO("enter vc4_v3d_bind");
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
