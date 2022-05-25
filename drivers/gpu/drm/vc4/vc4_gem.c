@@ -322,6 +322,7 @@ vc4_reset_work(struct work_struct *work)
 static void
 vc4_hangcheck_elapsed(struct timer_list *t)
 {
+	DRM_INFO("enter vc4_hangcheck_elapsed");
 	struct vc4_dev *vc4 = from_timer(vc4, t, hangcheck.timer);
 	struct drm_device *dev = &vc4->base;
 	uint32_t ct0ca, ct1ca;
@@ -351,13 +352,14 @@ vc4_hangcheck_elapsed(struct timer_list *t)
 			bin_exec->last_ct0ca = ct0ca;
 		if (render_exec)
 			render_exec->last_ct1ca = ct1ca;
+		DRM_INFO("wait");
 		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 		vc4_queue_hangcheck(dev);
 		return;
 	}
 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
-
+	DRM_INFO("too long with no progress, reset");
 	/* We've gone too long with no progress, reset.  This has to
 	 * be done from a work struct, since resetting can sleep and
 	 * this timer hook isn't allowed to.
@@ -381,6 +383,7 @@ int
 vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 		   bool interruptible)
 {
+	DRM_INFO("enter vc4_wait_for_seqno");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret = 0;
 	unsigned long timeout_expire;
@@ -413,9 +416,13 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 				ret = -ETIME;
 				break;
 			}
+			DRM_INFO("will schedule_timeout()");
 			schedule_timeout(timeout_expire - jiffies);
+			DRM_INFO("did schedule_timeout()");
 		} else {
+			DRM_INFO("will schedule()");
 			schedule();
+			DRM_INFO("did schedule()");
 		}
 	}
 
@@ -465,6 +472,7 @@ vc4_flush_texture_caches(struct drm_device *dev)
 void
 vc4_submit_next_bin_job(struct drm_device *dev)
 {
+	DRM_INFO("enter vc4_submit_next_bin_job");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec;
 
@@ -485,10 +493,11 @@ again:
 	 * immediately move it to the to-be-rendered queue.
 	 */
 	if (exec->ct0ca != exec->ct0ea) {
+		DRM_INFO("submit_cl");
 		submit_cl(dev, 0, exec->ct0ca, exec->ct0ea);
 	} else {
 		struct vc4_exec_info *next;
-
+		DRM_INFO("call vc4_move_job_to_render");
 		vc4_move_job_to_render(dev, exec);
 		next = vc4_first_bin_job(vc4);
 
@@ -505,6 +514,7 @@ again:
 void
 vc4_submit_next_render_job(struct drm_device *dev)
 {
+	DRM_INFO("enter vc4_submit_next_render_job");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec = vc4_first_render_job(vc4);
 
@@ -525,6 +535,7 @@ vc4_submit_next_render_job(struct drm_device *dev)
 void
 vc4_move_job_to_render(struct drm_device *dev, struct vc4_exec_info *exec)
 {
+	DRM_INFO("enter vc4_move_job_to_render");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	bool was_empty = list_empty(&vc4->render_job_list);
 

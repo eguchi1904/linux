@@ -154,6 +154,7 @@ vc4_cancel_bin_job(struct drm_device *dev)
 static void
 vc4_irq_finish_render_job(struct drm_device *dev)
 {
+	DRM_INFO("enter vc4_irq_finish_render_job");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec = vc4_first_render_job(vc4);
 	struct vc4_exec_info *nextbin, *nextrender;
@@ -199,6 +200,7 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 static irqreturn_t
 vc4_irq(int irq, void *arg)
 {
+	DRM_INFO("enter vc4_irq");
 	struct drm_device *dev = arg;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t intctl;
@@ -215,6 +217,7 @@ vc4_irq(int irq, void *arg)
 	V3D_WRITE(V3D_INTCTL, intctl);
 
 	if (intctl & V3D_INT_OUTOMEM) {
+		DRM_INFO("OUTOMEM");
 		/* Disable OUTOMEM until the work is done. */
 		V3D_WRITE(V3D_INTDIS, V3D_INT_OUTOMEM);
 		schedule_work(&vc4->overflow_mem_work);
@@ -222,6 +225,7 @@ vc4_irq(int irq, void *arg)
 	}
 
 	if (intctl & V3D_INT_FLDONE) {
+		DRM_INFO("FLDONE");
 		spin_lock(&vc4->job_lock);
 		vc4_irq_finish_bin_job(dev);
 		spin_unlock(&vc4->job_lock);
@@ -229,6 +233,7 @@ vc4_irq(int irq, void *arg)
 	}
 
 	if (intctl & V3D_INT_FRDONE) {
+		DRM_INFO("FRDONE");
 		spin_lock(&vc4->job_lock);
 		vc4_irq_finish_render_job(dev);
 		spin_unlock(&vc4->job_lock);
@@ -258,6 +263,7 @@ vc4_irq_prepare(struct drm_device *dev)
 void
 vc4_irq_enable(struct drm_device *dev)
 {
+	DRM_INFO("enter vc4_irq_enable ");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	if (!vc4->v3d)
@@ -272,6 +278,7 @@ vc4_irq_enable(struct drm_device *dev)
 void
 vc4_irq_disable(struct drm_device *dev)
 {
+	DRM_INFO("enter vc4_irq_disable");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	if (!vc4->v3d)
