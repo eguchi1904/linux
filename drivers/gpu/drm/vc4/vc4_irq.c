@@ -200,14 +200,14 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 static irqreturn_t
 vc4_irq(int irq, void *arg)
 {
-    DRM_DEBUG("enter vc4_irq \n");
-    DRM_ERROR("enter vc4_irq \n");
+    DRM_DEBUG("enter vc4_irq");
 	struct drm_device *dev = arg;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t intctl, dbqitc;
 	irqreturn_t status = IRQ_NONE;
-
+    DRM_DEBUG("will barrier");
 	barrier();
+	DRM_DEBUG("did barrier");
 	intctl = V3D_READ(V3D_INTCTL);
 	dbqitc = V3D_READ(V3D_DBQITC);
 
@@ -242,7 +242,7 @@ vc4_irq(int irq, void *arg)
 		spin_unlock(&vc4->job_lock);
 		status = IRQ_HANDLED;
 	}
-
+	
 	if (dbqitc) {
 		uint32_t srqcs = V3D_READ(V3D_SRQCS);
 		/* The job isn't done until all programs that were
