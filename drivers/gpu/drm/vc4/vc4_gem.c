@@ -378,6 +378,7 @@ vc4_hangcheck_elapsed(struct timer_list *t)
 static void
 submit_cl(struct drm_device *dev, uint32_t thread, uint32_t start, uint32_t end)
 {
+	DRM_INFO("enter submit_cl");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	/* Set the current and end address of the control list.
@@ -397,8 +398,10 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 	unsigned long timeout_expire;
 	DEFINE_WAIT(wait);
 
-	if (vc4->finished_seqno >= seqno)
+	if (vc4->finished_seqno >= seqno) {
+		DRM_INFO("already finished");
 		return 0;
+	}
 
 	if (timeout_ns == 0)
 		return -ETIME;
@@ -569,6 +572,7 @@ vc4_move_job_to_render(struct drm_device *dev, struct vc4_exec_info *exec)
 static void
 vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
 {
+	DRM_INFO("enter vc4_update_bo_seqnos");
 	struct vc4_bo *bo;
 	unsigned i;
 
@@ -596,6 +600,7 @@ vc4_unlock_bo_reservations(struct drm_device *dev,
 			   struct vc4_exec_info *exec,
 			   struct ww_acquire_ctx *acquire_ctx)
 {
+	DRM_INFO("enter vc4_unlock_bo_reservations");
 	int i;
 
 	for (i = 0; i < exec->bo_count; i++) {
@@ -619,6 +624,7 @@ vc4_lock_bo_reservations(struct drm_device *dev,
 			 struct vc4_exec_info *exec,
 			 struct ww_acquire_ctx *acquire_ctx)
 {
+	DRM_INFO("enter vc4_lock_bo_reservations");
 	int contended_lock = -1;
 	int i, ret;
 	struct drm_gem_object *bo;
@@ -698,7 +704,7 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 		 struct ww_acquire_ctx *acquire_ctx,
 		 struct drm_syncobj *out_sync)
 {
-	DRM_INFO("vc4_queue_submit");
+	DRM_INFO("enter vc4_queue_submit");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *renderjob;
 	uint64_t seqno;
@@ -855,6 +861,7 @@ fail:
 static int
 vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 {
+	DRM_INFO("enter vc4_get_bcl");
 	struct drm_vc4_submit_cl *args = exec->args;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	void *temp = NULL;
@@ -1097,6 +1104,7 @@ vc4_wait_for_seqno_ioctl_helper(struct drm_device *dev,
 				uint64_t *timeout_ns)
 {
 	unsigned long start = jiffies;
+	DRM_INFO("vc4_wait_for_seqno_ioctl_helper");
 	int ret = vc4_wait_for_seqno(dev, seqno, *timeout_ns, true);
 
 	if ((ret == -EINTR || ret == -ERESTARTSYS) && *timeout_ns != ~0ull) {
@@ -1123,6 +1131,7 @@ int
 vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
+	DRM_INFO("enter vc4_wait_bo_ioctl");
 	int ret;
 	struct drm_vc4_wait_bo *args = data;
 	struct drm_gem_object *gem_obj;
@@ -1195,6 +1204,7 @@ int
 vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
+	DRM_INFO("enter vc4_submit_cl_ioctl");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_file *vc4file = file_priv->driver_priv;
 	struct drm_vc4_submit_cl *args = data;
@@ -1228,10 +1238,11 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	ret = vc4_v3d_pm_get(vc4);
 	if (ret) {
+		DRM_INFO("will kfree(exec) in vc4_submit_cl_ioctl");
 		kfree(exec);
 		return ret;
 	}
-
+	DRM_INFO("set exec->args");
 	exec->args = args;
 
 	ret = vc4_cl_lookup_bos(dev, file_priv, exec);
@@ -1260,6 +1271,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 		 */
 		if (!dma_fence_match_context(in_fence,
 					     vc4->dma_fence_context)) {
+			DRM_INFO("will dma_fence_wait");
 			ret = dma_fence_wait(in_fence, true);
 			if (ret) {
 				dma_fence_put(in_fence);
@@ -1305,7 +1317,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	 * since it's part of our stack.
 	 */
 	exec->args = NULL;
-
+	DRM_INFO("vc4_queue_submit in vc4_submit_cl_ioctl");
 	ret = vc4_queue_submit(dev, exec, &acquire_ctx, out_sync);
 
 	/* The syncobj isn't part of the exec data and we need to free our
@@ -1319,7 +1331,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	/* Return the seqno for our job. */
 	args->seqno = vc4->emit_seqno;
-
+	DRM_INFO("vc4_submit_cl_ioctl return")
 	return 0;
 
 fail:
@@ -1342,7 +1354,8 @@ vc4_firmware_qpu_execute(struct vc4_dev *vc4, u32 num_jobs,
 	int ret, i;
 	uint64_t seqno;
 	struct ww_acquire_ctx acquire_ctx;
-
+	unsigned long polling_timeout;
+	
 	control_paddr = control & ~(BIT(31) | BIT(30));
 
 	DRM_INFO("QPU execute nqpu 0x%08x, "
