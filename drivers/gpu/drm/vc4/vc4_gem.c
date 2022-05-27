@@ -40,9 +40,9 @@ static void
 vc4_queue_hangcheck(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-
+	
 	mod_timer(&vc4->hangcheck.timer,
-              round_jiffies_up(jiffies + msecs_to_jiffies(3000))); // test
+              round_jiffies_up(jiffies + msecs_to_jiffies(100))); // test
 }
 
 struct vc4_hang_state {
@@ -745,7 +745,8 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 	    (!renderjob || renderjob->perfmon == exec->perfmon)) {
 		DRM_INFO("vc4_submit_next_bin_job");	
 		vc4_submit_next_bin_job(dev);
-		vc4_queue_hangcheck(dev);
+		if (!(renderjob->user_qpu_job_count > 0))
+			vc4_queue_hangcheck(dev);
 	}
 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
