@@ -154,7 +154,7 @@ vc4_cancel_bin_job(struct drm_device *dev)
 static void
 vc4_irq_finish_render_job(struct drm_device *dev)
 {
-	DRM_INFO("enter finish render job");				
+	DRM_INFO("enter vc4_irq_finish_render_job");				
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec = vc4_first_render_job(vc4);
 	struct vc4_exec_info *nextbin, *nextrender;

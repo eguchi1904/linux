@@ -749,7 +749,7 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 	}
 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
-	DRM_INFO("submit job seqno=%d", seqno);
+	DRM_INFO("vc4_queue_submit: submit job seqno=%d", seqno);
 	return 0;
 }
 
@@ -982,6 +982,7 @@ fail:
 static void
 vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 {
+	DRM_INFO("enter vc4_complete_exec");
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	unsigned long irqflags;
 	unsigned i;
@@ -1331,7 +1332,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	/* Return the seqno for our job. */
 	args->seqno = vc4->emit_seqno;
-	DRM_INFO("vc4_submit_cl_ioctl return")
+	DRM_INFO("vc4_submit_cl_ioctl return");
 	return 0;
 
 fail:
@@ -1405,6 +1406,12 @@ vc4_firmware_qpu_execute(struct vc4_dev *vc4, u32 num_jobs,
 	/* The mailbox interface is synchronous, so wait for the job
 	 * we just made to complete.
 	 */
+	unsigned long delay = jiffies + msecs_to_jiffies(3000);
+	DRM_INFO("wait begin");
+	while (time_before(jiffies, delay))
+    	continue;
+
+	DRM_INFO("wait end");
 	ret = vc4_wait_for_seqno(dev, seqno, ~0ull, true);
 
 	return ret;
