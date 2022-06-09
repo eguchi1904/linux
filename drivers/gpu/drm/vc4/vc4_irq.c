@@ -205,20 +205,27 @@ vc4_irq(int irq, void *arg)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t intctl, dbqitc;
 	irqreturn_t status = IRQ_NONE;
+	uint32_t srqcs;
+ 	uint32_t qpurqcc;
+ 	uint32_t qpurqcm;
     DRM_DEBUG("will barrier");
 	barrier();
 	DRM_DEBUG("did barrier");
 	intctl = V3D_READ(V3D_INTCTL);
 	dbqitc = V3D_READ(V3D_DBQITC);
-
+	srqcs = V3D_READ(V3D_SRQCS);
+ 	qpurqcc = VC4_GET_FIELD(srqcs, V3D_SRQCS_QPURQCC);
+ 	qpurqcm = VC4_GET_FIELD(srqcs, V3D_SRQCS_QPURQCM);
 	/* Acknowledge the interrupts we're handling here. The binner
 	 * last flush / render frame done interrupt will be cleared,
 	 * while OUTOMEM will stay high until the underlying cause is
 	 * cleared.
 	 */
-	V3D_WRITE(V3D_INTCTL, intctl);
-	V3D_WRITE(V3D_DBQITC, dbqitc);
-	DRM_INFO("intctl= %d, dbqitc=%d", intctl, dbqitc);
+	if (intctl)
+ 		V3D_WRITE(V3D_INTCTL, intctl);
+ 	if (dbqitc)
+ 		V3D_WRITE(V3D_DBQITC, dbqitc);
+	
 	if (intctl & V3D_INT_OUTOMEM) {
 		/* Disable OUTOMEM until the work is done. */
 		DRM_INFO("OUTOMEM");
@@ -244,7 +251,6 @@ vc4_irq(int irq, void *arg)
 	}
 	
 	if (dbqitc) {
-		uint32_t srqcs = V3D_READ(V3D_SRQCS);
 		/* The job isn't done until all programs that were
 		 * spawned have sent an interrupt.
 		 *
@@ -253,14 +259,14 @@ vc4_irq(int irq, void *arg)
 		 * Do we have a race between the interrupt reaching
 		 * ARM and when these queue counts get updated?
 		 */
-		if (VC4_GET_FIELD(srqcs, V3D_SRQCS_QPURQCC) ==
-		    VC4_GET_FIELD(srqcs, V3D_SRQCS_QPURQCM)) {
-			V3D_WRITE(srqcs,
+		if (qpurqcc == qpurqcm) {
+			V3D_WRITE(V3D_SRQCS,
 				  V3D_SRQCS_QPURQCC_CLEAR |
 				  V3D_SRQCS_QPURQCM_CLEAR);
 			spin_lock(&vc4->job_lock);
 			vc4_irq_finish_render_job(dev);
 			spin_unlock(&vc4->job_lock);
+			status = IRQ_HANDLED;
 		}
 	}
 

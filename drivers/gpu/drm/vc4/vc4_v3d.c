@@ -438,7 +438,9 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	ret = clk_prepare_enable(v3d->clk);
 	if (ret != 0)
 		return ret;
-
+		
+	/* Enable QPU to host interrupt */
+ 	V3D_WRITE(V3D_DBCFG, 1);
 	/* Reset the binner overflow address/size at setup, to be sure
 	 * we don't reuse an old one.
 	 */
@@ -499,6 +501,9 @@ static void vc4_v3d_unbind(struct device *dev, struct device *master,
 	 */
 	V3D_WRITE(V3D_BPOA, 0);
 	V3D_WRITE(V3D_BPOS, 0);
+
+	/* Disable QPU to host interrupt */
+ 	V3D_WRITE(V3D_DBCFG, 0);
 
 	vc4->v3d = NULL;
 }

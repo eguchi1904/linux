@@ -548,6 +548,7 @@ vc4_submit_next_render_job(struct drm_device *dev)
 		/* XXX: Make sure we're idle. */
 		/* XXX: Set up VPM */
 		for (i = 0; i < exec->user_qpu_job_count; i++) {
+			V3D_WRITE(V3D_SRQUL, 1024);
 			V3D_WRITE(V3D_SRQUA, exec->user_qpu_job[i].uniforms);
 			V3D_WRITE(V3D_SRQPC, exec->user_qpu_job[i].code);
 		}	
@@ -1373,6 +1374,11 @@ vc4_firmware_qpu_execute(struct vc4_dev *vc4, u32 num_jobs,
 	if (IS_ERR(exec))
 		return PTR_ERR(exec);
 
+    ret = vc4_v3d_pm_get(vc4);
+ 	if (ret) {
+ 		kfree(exec);
+ 		return ret;
+ 	}
 	ret = vc4_lock_bo_reservations(dev, exec, &acquire_ctx);
 	DRM_INFO("vc4_lock_bo_reservations");
 	if (ret) {
